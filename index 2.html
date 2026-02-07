@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>金融情報ダッシュボード</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            background: #0a0e1a;
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* 背景アニメーション */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse at top, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* リアルタイム株価ティッカー */
+        .ticker-wrapper {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px 0;
+            overflow: hidden;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .ticker {
+            display: flex;
+            animation: scroll 40s linear infinite;
+            white-space: nowrap;
+        }
+
+        @keyframes scroll {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        .ticker-item {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 50px;
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .ticker-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: scale(1.05);
+        }
+
+        .ticker-symbol {
+            font-weight: 700;
+            font-size: 14px;
+            margin-right: 12px;
+            color: #94a3b8;
+        }
+
+        .ticker-price {
+            font-weight: 600;
+            font-size: 16px;
+            margin-right: 10px;
+            color: #e2e8f0;
+        }
+
+        .ticker-change {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .ticker-change.up {
+            color: #34d399;
+            background: rgba(52, 211, 153, 0.15);
+        }
+
+        .ticker-change.down {
+            color: #f87171;
+            background: rgba(248, 113, 113, 0.15);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 30px 20px;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 18px;
+            font-weight: 400;
+        }
+
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .category-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 30px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, currentColor, transparent);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .category-card:hover::before {
+            opacity: 1;
+        }
+
+        .category-card:hover {
+            background: rgba(15, 23, 42, 0.8);
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .category-icon {
+            font-size: 32px;
+            margin-right: 15px;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+
+        .category-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #f1f5f9;
+            letter-spacing: -0.5px;
+        }
+
+        .links-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .link-button {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 22px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            text-decoration: none;
+            color: #e2e8f0;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .link-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .link-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateX(8px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .link-button:hover::before {
+            left: 100%;
+        }
+
+        .link-button:active {
+            transform: translateX(6px) scale(0.98);
+        }
+
+        .link-icon {
+            margin-right: 14px;
+            font-size: 20px;
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        .link-text {
+            flex: 1;
+            text-align: left;
+        }
+
+        .arrow {
+            font-size: 20px;
+            opacity: 0.4;
+            transition: all 0.3s ease;
+        }
+
+        .link-button:hover .arrow {
+            opacity: 1;
+            transform: translateX(5px);
+        }
+
+        /* カテゴリ別カラー */
+        .category-card.news {
+            color: #60a5fa;
+        }
+
+        .category-card.news .category-header {
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+
+        .category-card.market {
+            color: #34d399;
+        }
+
+        .category-card.market .category-header {
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+
+        .category-card.stocks {
+            color: #fb923c;
+        }
+
+        .category-card.stocks .category-header {
+            border-color: rgba(251, 146, 60, 0.3);
+        }
+
+        .category-card.earnings {
+            color: #a855f7;
+        }
+
+        .category-card.earnings .category-header {
+            border-color: rgba(168, 85, 247, 0.3);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .ticker-item {
+                margin-right: 30px;
+                padding: 6px 15px;
+            }
+
+            .ticker-symbol {
+                font-size: 12px;
+            }
+
+            .ticker-price {
+                font-size: 14px;
+            }
+
+            .categories {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            h1 {
+                font-size: 32px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+            }
+
+            .category-card {
+                padding: 25px;
+            }
+
+            .link-button {
+                padding: 16px 18px;
+                font-size: 14px;
+            }
+        }
+
+        /* フェードインアニメーション */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .category-card {
+            animation: fadeInUp 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        .category-card:nth-child(1) { animation-delay: 0.1s; }
+        .category-card:nth-child(2) { animation-delay: 0.2s; }
+        .category-card:nth-child(3) { animation-delay: 0.3s; }
+        .category-card:nth-child(4) { animation-delay: 0.4s; }
+
+        /* ローディング表示 */
+        .loading {
+            color: #64748b;
+            font-size: 13px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- リアルタイム株価ティッカー -->
+    <div class="ticker-wrapper">
+        <div class="ticker" id="ticker">
+            <!-- JavaScriptで動的に生成 -->
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>📊 金融情報ダッシュボード</h1>
+            <p class="subtitle">プロフェッショナルなマーケットアクセス</p>
+        </header>
+
+        <div class="categories">
+            <!-- ニュースサイト -->
+            <div class="category-card news">
+                <div class="category-header">
+                    <span class="category-icon">📰</span>
+                    <span class="category-title">ニュースサイト</span>
+                </div>
+                <div class="links-list">
+                    <a href="https://www.bloomberg.co.jp/" target="_blank" class="link-button">
+                        <span class="link-icon">📈</span>
+                        <span class="link-text">ブルームバーグ</span>
+                        <span class="arrow">→</span>
+                    </a>
+                    <a href="https://jp.reuters.com/" target="_blank" class="link-button">
+                        <span class="link-icon">🌐</span>
+                        <span class="link-text">ロイター通信</span>
+                        <span class="arrow">→</span>
+                    </a>
+                    <a href="https://jp.wsj.com/" target="_blank" class="link-button">
+                        <span class="link-icon">📊</span>
+                        <span class="link-text">ウォール・ストリート・ジャーナル</span>
+                        <span class="arrow">→</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- マーケット情報 -->
+            <div class="category-card market">
+                <div class="category-header">
+                    <span class="category-icon">💹</span>
+                    <span class="category-title">マーケット情報</span>
+                </div>
+                <div class="links-list">
+                    <a href="https://advance.quote.nomura.co.jp/meigara/nomura2/qsearch.exe?F=users/nomura/tse" target="_blank" class="link-button">
+                        <span class="link-icon">🇯🇵</span>
+                        <span class="link-text">東証株式市況【野村證券】</span>
+                        <span class="arrow">→</span>
+                    </a>
+                    <a href="https://advance.quote.nomura.co.jp/meigara/nomura2/users/asp/ny.asp?F=users/nomura/ny/hp" target="_blank" class="link-button">
+                        <span class="link-icon">🇺🇸</span>
+                        <span class="link-text">ニューヨーク株式市況【野村證券】</span>
+                        <span class="arrow">→</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 個別銘柄（米国株） -->
+            <div class="category-card stocks">
+                <div class="category-header">
+                    <span class="category-icon">🎯</span>
+                    <span class="category-title">個別銘柄（米国株）</span>
+                </div>
+                <div class="links-list">
+                    <a href="https://www.sbisec.co.jp/ETGate/?OutSide=on&_ControlID=WPLETmgR001Control&_PageID=WPLETmgR001Mdtl20&_DataStoreID=DSWPLETmgR001Control&_ActionID=DefaultAID&getFlg=on&burl=search_market&cat1=market&cat2=report&dir=report&file=market_report_fo_america_er.html" target="_blank" class="link-button">
+                        <span class="link-icon">📋</span>
+                        <span class="link-text">米国株決算速報【SBI証券】</span>
+                        <span class="arrow">→</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 決算関連情報 -->
+            <div class="category-card earnings">
+                <div class="category-header">
+                    <span class="category-icon">📅</span>
+                    <span class="category-title">決算関連情報</span>
+                </div>
+                <div class="links-list">
+                    <a href="https://www.rakuten-sec.co.jp/web/market/calendar/" target="_blank" class="link-button">
+                        <span class="link-icon">🗓️</span>
+                        <span class="link-text">決算・経済カレンダー【楽天証券】</span>
+                        <span class="arrow">→</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            リアルタイム株価更新中 | 各リンクは新しいタブで開きます
+        </footer>
+    </div>
+
+    <script>
+        // リアルタイム株価データ（模擬データ - 実際のAPIに置き換え可能）
+        const stockData = [
+            { symbol: '日経平均', price: '38,450.32', change: '+1.24%', direction: 'up' },
+            { symbol: 'TOPIX', price: '2,687.45', change: '+0.89%', direction: 'up' },
+            { symbol: 'S&P500', price: '5,975.23', change: '-0.35%', direction: 'down' },
+            { symbol: 'NASDAQ', price: '19,341.77', change: '-0.52%', direction: 'down' },
+            { symbol: 'ダウ', price: '43,215.66', change: '+0.18%', direction: 'up' },
+            { symbol: 'ドル/円', price: '¥148.75', change: '+0.45%', direction: 'up' },
+            { symbol: 'ユーロ/円', price: '¥161.32', change: '-0.12%', direction: 'down' },
+            { symbol: '金先物', price: '$2,634.50', change: '+1.15%', direction: 'up' },
+            { symbol: '原油WTI', price: '$68.24', change: '-0.78%', direction: 'down' },
+            { symbol: 'ビットコイン', price: '$95,432', change: '+2.34%', direction: 'up' }
+        ];
+
+        // ティッカー生成
+        function createTicker() {
+            const ticker = document.getElementById('ticker');
+            const tickerHTML = stockData.map(stock => `
+                <div class="ticker-item">
+                    <span class="ticker-symbol">${stock.symbol}</span>
+                    <span class="ticker-price">${stock.price}</span>
+                    <span class="ticker-change ${stock.direction}">${stock.change}</span>
+                </div>
+            `).join('');
+            
+            // ティッカーを2回繰り返してシームレスなスクロールを実現
+            ticker.innerHTML = tickerHTML + tickerHTML;
+        }
+
+        // ティッカーのデータを更新（実際のAPIと連携する場合）
+        function updateTickerData() {
+            // ここで実際のAPI呼び出しを行う
+            // 例: fetch('YOUR_API_ENDPOINT')
+            //   .then(response => response.json())
+            //   .then(data => { ... })
+            
+            // 模擬的なランダム更新
+            stockData.forEach(stock => {
+                if (Math.random() > 0.7) {
+                    const change = (Math.random() * 2 - 1).toFixed(2);
+                    stock.change = (change > 0 ? '+' : '') + change + '%';
+                    stock.direction = change > 0 ? 'up' : 'down';
+                }
+            });
+            createTicker();
+        }
+
+        // 初期化
+        createTicker();
+
+        // 30秒ごとに更新（実際の使用時は適切な間隔に調整）
+        setInterval(updateTickerData, 30000);
+
+        // キーボードショートカット
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
+                e.preventDefault();
+                const links = document.querySelectorAll('.link-button');
+                const index = parseInt(e.key) - 1;
+                if (links[index]) {
+                    links[index].click();
+                }
+            }
+        });
+
+        // フォーカス時のハイライト
+        document.querySelectorAll('.link-button').forEach(link => {
+            link.addEventListener('focus', function() {
+                this.style.outline = '2px solid rgba(96, 165, 250, 0.6)';
+                this.style.outlineOffset = '3px';
+            });
+            link.addEventListener('blur', function() {
+                this.style.outline = 'none';
+            });
+        });
+    </script>
+</body>
+</html>
